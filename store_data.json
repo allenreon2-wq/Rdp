@@ -1,0 +1,331 @@
+{
+  "menus": {
+    "Editing Stufs": {
+      "submenus": {
+        "CC": {
+          "items": [
+            {
+              "name": "Quality CC",
+              "price": "Free",
+              "description": "Badas Premium CC by Kartik",
+              "link_type": "free",
+              "link_url": null,
+              "preview_files": [
+                {
+                  "file_id": "AgACAgUAAxkBAAIBjGntmdeGHmePqOBKsMMCxSYchFL9AAK7EGsbGbhpVzlCr-rmKP4RAQADAgADeQADOwQ",
+                  "file_type": "photo"
+                },
+                {
+                  "file_id": "AgACAgUAAxkBAAIBjWntmddNXxj6q8KYX8dsnW-oLReHAAK8EGsbGbhpVyEK1hN5eGvsAQADAgADeQADOwQ",
+                  "file_type": "photo"
+                }
+              ],
+              "attachments": [
+                {
+                  "file_id": "BQACAgUAAxkBAAIBkWntmfo5RLAxiPWnGgABmVRH-Ls0ZgAC4hcAAgX1wVavXXbQrLCZsjsE",
+                  "file_type": "document"
+                },
+                {
+                  "file_id": "BQACAgUAAxkBAAIBkmntmfqDagX0mrnJnMjJVTpjekhDAALhFwACBfXBVrGslpBwfa0SOwQ",
+                  "file_type": "document"
+                }
+              ]
+            },
+            {
+              "name": "Neptune CC",
+              "price": "🆓",
+              "description": "Don't sale gay",
+              "link_type": "free",
+              "link_url": null,
+              "preview_files": [
+                {
+                  "file_id": "AgACAgUAAxkBAAID6GnwM0AGVqGk9fAWzXFemu82Usq_AAIBD2sbnpUZV9tFBKkRUUREAQADAgADeQADOwQ",
+                  "file_type": "photo"
+                },
+                {
+                  "file_id": "AgACAgUAAxkBAAID6WnwM0CiKv6vyUVD7Map-lZkHooJAAICD2sbnpUZV2m3SYVjDZLNAQADAgADeQADOwQ",
+                  "file_type": "photo"
+                },
+                {
+                  "file_id": "AgACAgUAAxkBAAID6mnwM0CTvhms6hCrzltBh-AcoO_PAAIDD2sbnpUZV6mWl8TlWo9xAQADAgADeQADOwQ",
+                  "file_type": "photo"
+                },
+                {
+                  "file_id": "AgACAgUAAxkBAAID62nwM0C0hetQateaHzMW1MigqDjfAAIED2sbnpUZV0APCkHgjGNDAQADAgADeQADOwQ",
+                  "file_type": "photo"
+                },
+                {
+                  "file_id": "AgACAgUAAxkBAAID7GnwM0CIlRGhuU_djt9wezwYwA_NAAIFD2sbnpUZV68sJdK-lw5TAQADAgADeQADOwQ",
+                  "file_type": "photo"
+                }
+              ],
+              "attachments": [
+                {
+                  "file_id": "BQACAgUAAxkBAAID72nwM0yrLHsclLxq4sdEBXOWtuKvAAIDHgACeloYVxdZ8xAx60GGOwQ",
+                  "file_type": "document"
+                }
+              ]
+            },
+            {
+              "name": "Goldish CC",
+              "price": "Free",
+              "description": "Enjoy Buddy",
+              "link_type": "free",
+              "link_url": null,
+              "preview_files": [
+                {
+                  "file_id": "AgACAgUAAxkBAAID_2nwN3OaeNMlGLSRZWEGVguaXqVrAAKjDWsbrsD4Vv0ZT-4wVbcvAQADAgADeQADOwQ",
+                  "file_type": "photo"
+                },
+                {
+                  "file_id": "AgACAgUAAxkBAAIEAAFp8Ddz-XoYK3qwkkaHDMpD-YAI4AACpA1rG67A-FYUvWm3y2r1AwEAAwIAA3kAAzsE",
+                  "file_type": "photo"
+                }
+              ],
+              "attachments": [
+                {
+                  "file_id": "BQACAgUAAxkBAAIEA2nwN38QqiRTGrkqV491LUwU8eccAAJMHwACwaUAAVd8A2gxRx618zsE",
+                  "file_type": "document"
+                }
+              ]
+            }
+          ]
+        },
+        "Pfp": {
+          "items": [
+            {
+              "name": "Blue Tony Pfp",
+              "price": "40 rupey",
+              "description": "Badas Premium Pfp",
+              "link_type": "buy",
+              "link_url": null,
+              "preview_files": [
+                {
+                  "file_id": "AgACAgUAAxkBAAPraezu0XrjFnAotfIKWfUfbtIG-9AAAowQaxs98GlXs9yiOhI010gBAAMCAAN4AAM7BA",
+                  "file_type": "photo"
+                }
+              ],
+              "attachments": []
+            },
+            {
+              "name": "Ronaldo Pfp",
+              "price": "Free Now",
+              "description": "W premium Pfp",
+              "link_type": "free",
+              "link_url": null,
+              "preview_files": [
+                {
+                  "file_id": "AgACAgUAAxkBAAIDbmnuAThX3ptWUuOP_apYPqrWYC5VAALnwTEb2u9QVdwl0tua7GmlAQADAgADeQADOwQ",
+                  "file_type": "photo"
+                }
+              ],
+              "attachments": [
+                {
+                  "file_id": "AgACAgUAAxkBAAIDcWnuAUlv9LehUWeCydcad36GHeaIAALmwTEb2u9QVbQgxqaqLLOfAQADAgADeAADOwQ",
+                  "file_type": "photo"
+                }
+              ]
+            },
+            {
+              "name": "Superman Pfp",
+              "price": "Free Now",
+              "description": "Snap Premium Pfp",
+              "link_type": "free",
+              "link_url": null,
+              "preview_files": [
+                {
+                  "file_id": "AgACAgUAAxkBAAIDemnuAtnRLVx9E4uP61sgdc-bAAHnpAACPA1rG1-CqFSRwE_671M1jgEAAwIAA3kAAzsE",
+                  "file_type": "photo"
+                }
+              ],
+              "attachments": [
+                {
+                  "file_id": "AgACAgUAAxkBAAIDfWnuAuL7tHBJkQhO52wooGZzXsXsAAKnDWsbmMWxVM40utqhK-9BAQADAgADeAADOwQ",
+                  "file_type": "photo"
+                }
+              ]
+            }
+          ]
+        },
+        "Outro": {
+          "items": [
+            {
+              "name": "Cloud Outro",
+              "price": "Free Now",
+              "description": "Goat Premium Outro",
+              "link_type": "free",
+              "link_url": null,
+              "preview_files": [
+                {
+                  "file_id": "AgACAgUAAxkBAAIDg2nuAzd9KJHCE5KjX8_alOqeKQPhAAJYEGsbGbhxVybrkp8zxDdpAQADAgADeQADOwQ",
+                  "file_type": "photo"
+                }
+              ],
+              "attachments": [
+                {
+                  "file_id": "BQACAgUAAxkBAAIDhmnuA0cI70VArOxVRD0l6sgtl7CTAAJ1GwACvf15VCvM50RMyoK1OwQ",
+                  "file_type": "document"
+                }
+              ]
+            },
+            {
+              "name": "Deadly Outro",
+              "price": "Free Now",
+              "description": "Deadly Premium Outro",
+              "link_type": "free",
+              "link_url": null,
+              "preview_files": [
+                {
+                  "file_id": "AgACAgUAAxkBAAIDkmnuBQedRoTiJPmkYSL6ZSq6EBMEAAKxEWsb-N2pVWtSDfpRBW8eAQADAgADeQADOwQ",
+                  "file_type": "photo"
+                }
+              ],
+              "attachments": [
+                {
+                  "file_id": "BQACAgIAAxkBAAIDlWnuBREfNZ5ea-rabfM3GiLS--KdAAL3nQACD1agSYFKhNI5dWFyOwQ",
+                  "file_type": "document"
+                }
+              ]
+            },
+            {
+              "name": "Steve Outro",
+              "price": "https://drive.google.com/drive/folders/1WHbamcZfHMyxymWXCzhW3k1xXCBtTeRI",
+              "description": "Steve Premium Outro",
+              "link_type": "free",
+              "link_url": null,
+              "preview_files": [
+                {
+                  "file_id": "BAACAgUAAxkBAAIDmmnuBT9vWXcuW5-Qbgs-Ze4pOazgAAI4IAACHVBZVaTgfaRg9YvJOwQ",
+                  "file_type": "video"
+                }
+              ],
+              "attachments": []
+            },
+            {
+              "name": "Richy Outro",
+              "price": "Free Now",
+              "description": "Richy Premium Outro",
+              "link_type": "free",
+              "link_url": null,
+              "preview_files": [
+                {
+                  "file_id": "AgACAgUAAxkBAAIDq2nuBcqLSyhvViTXhgI5Y0MjoD8dAAIBDWsbWvdwVMXUxllwFEgSAQADAgADeQADOwQ",
+                  "file_type": "photo"
+                }
+              ],
+              "attachments": [
+                {
+                  "file_id": "BQACAgUAAxkBAAIDrmnuBdftFhxJAAGnqqT8hhHo6q3WWQACpR4AAlr3eFTCGSo74P8WsDsE",
+                  "file_type": "document"
+                }
+              ]
+            }
+          ]
+        },
+        "Watermark": {
+          "items": [
+            {
+              "name": "Brinkzae w Mark",
+              "price": "Free",
+              "description": "Don't sale then u gay",
+              "link_type": "free",
+              "link_url": null,
+              "preview_files": [
+                {
+                  "file_id": "BAACAgUAAxkBAAIECWnwN9KplCnG-3dnWT263by2Zs4aAAKVJAACfJboVg4KrmjjqQpoOwQ",
+                  "file_type": "video"
+                }
+              ],
+              "attachments": [
+                {
+                  "file_id": "BQACAgUAAxkBAAIEDGnwN-CZLMw96_EKI1aPsA2bYTSQAAKhHQACkPToVqFjbW2hWdDtOwQ",
+                  "file_type": "document"
+                }
+              ]
+            }
+          ]
+        },
+        "Text": {
+          "items": [
+            {
+              "name": "spider man text",
+              "price": "Free",
+              "description": "Not mine",
+              "link_type": "free",
+              "link_url": null,
+              "preview_files": [
+                {
+                  "file_id": "BAACAgUAAxkBAAIEEmnwOENBTd5_XUzkZ_gn-ulNVr7SAALeHAACjxAwViqYir_q0uifOwQ",
+                  "file_type": "video"
+                }
+              ],
+              "attachments": [
+                {
+                  "file_id": "BQACAgUAAxkBAAIEFWnwOFCnq0_HO-nkQoRbqPxS-KTcAAI1HwACzCRAVlB08d7gw0rNOwQ",
+                  "file_type": "document"
+                }
+              ]
+            }
+          ]
+        },
+        "Clips": {
+          "items": [
+            {
+              "name": "Soldier boy S5",
+              "price": "Free",
+              "description": "By Dayo",
+              "link_type": "free",
+              "link_url": null,
+              "preview_files": [
+                {
+                  "file_id": "AgACAgIAAxkBAAIEG2nwONrmIGa4_3KxgPry4qfxcIZ-AAIeE2sbbN7ISjgcs0fTHjx6AQADAgADeQADOwQ",
+                  "file_type": "photo"
+                }
+              ],
+              "attachments": [
+                {
+                  "file_id": "BQACAgUAAxkBAAIEHmnwOShl0geldbAlCvgSLiFklkfHAALrIQACTCmAV4uk2K7uWSKBOwQ",
+                  "file_type": "document"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  },
+  "settings": {
+    "channels": [
+      -1002720224326
+    ],
+    "welcome_file_id": "AgACAgUAAxkBAAICJ2ntoY5EyG7_sdtzahS9JtAwyKPOAAJKEGsbPfBpV24tzXIIRFz2AQADAgADdwADOwQ",
+    "welcome_file_type": "photo",
+    "chat_gc_link": "https://t.me/reonstorebot",
+    "display_name": "Epic Store Bot"
+  },
+  "users": [
+    8590773443,
+    8636937832,
+    7850927408,
+    8782571074,
+    6111910941,
+    6313080978,
+    6846212403,
+    8679298308,
+    8743335595
+  ],
+  "admins": [
+    8590773443,
+    8782571074,
+    8781054983,
+    8636937832
+  ],
+  "_manifest": {
+    "version": 2,
+    "total_files": 32,
+    "export_info": {
+      "menus_count": 1,
+      "users_count": 9
+    }
+  }
+}

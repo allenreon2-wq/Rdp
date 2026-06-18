@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>iPhone 17 Pro Max Simulator</title>
+    <style>
+        /* --- General Reset & Prevent Pull-to-Refresh --- */
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        body { 
+            display: flex; justify-content: center; align-items: center; 
+            height: 100vh; background-color: #111; overflow: hidden; 
+            /* Yeh code mobile me pull-to-refresh ko rokega */
+            overscroll-behavior-y: contain; 
+            touch-action: none;
+        }
+
+        /* --- iPhone Hardware Frame --- */
+        .iphone-frame {
+            width: 390px; height: 844px; /* Pro Max Proportions */
+            background-color: #000; border-radius: 55px;
+            box-shadow: 0 0 0 14px #222, 0 30px 60px rgba(0,0,0,0.8);
+            position: relative; overflow: hidden;
+        }
+
+        /* Dynamic Island */
+        .dynamic-island {
+            position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+            width: 120px; height: 35px; background-color: #000; border-radius: 20px;
+            z-index: 1000; transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+            box-shadow: inset 0 0 5px rgba(255,255,255,0.15);
+        }
+
+        /* --- Screen Area & Wallpaper --- */
+        .screen {
+            width: 100%; height: 100%; position: absolute; top: 0; left: 0;
+            /* Premium iOS 17/18 Style Wallpaper */
+            background: url('https://images.unsplash.com/photo-1614850523459-c2f4c699c52e?q=80&w=1000&auto=format&fit=crop') center/cover;
+            border-radius: 45px; overflow: hidden;
+        }
+
+        /* Status Bar */
+        .status-bar {
+            position: absolute; top: 18px; width: 100%;
+            display: flex; justify-content: space-between; padding: 0 25px;
+            color: white; font-size: 14px; font-weight: 600; z-index: 900;
+        }
+
+        /* Control Center Touch Area (Top Right) */
+        .cc-trigger {
+            position: absolute; top: 0; right: 0; width: 120px; height: 50px;
+            z-index: 1001; cursor: pointer;
+        }
+
+        /* --- UI Layers --- */
+        #home-screen, #app-screen, #control-center {
+            width: 100%; height: 100%; position: absolute; top: 0; left: 0;
+        }
+
+        /* Home Screen (Active by default) */
+        #home-screen { opacity: 1; pointer-events: auto; transition: transform 0.4s ease; display: flex; flex-direction: column; justify-content: space-between; }
+        #home-screen.scaled-back { transform: scale(0.95); opacity: 0.8; }
+
+        /* App Screen */
+        #app-screen { 
+            background: white; z-index: 50; 
+            transform: scale(0.9) translateY(100%); opacity: 0; pointer-events: none;
+            transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+        #app-screen.active { transform: scale(1) translateY(0); opacity: 1; pointer-events: auto; }
+
+        /* Control Center */
+        #control-center {
+            background: rgba(0,0,0,0.5); backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
+            z-index: 80; transform: translateY(-100%); opacity: 0; pointer-events: none;
+            transition: all 0.5s cubic-bezier(0.2, 0.8, 0.2, 1); padding: 70px 20px 20px;
+        }
+        #control-center.active { transform: translateY(0); opacity: 1; pointer-events: auto; }
+
+        /* --- Home Screen UI --- */
+        .app-grid {
+            display: grid; grid-template-columns: repeat(4, 1fr);
+            gap: 25px 15px; padding: 80px 20px 0;
+        }
+        .app-icon { display: flex; flex-direction: column; align-items: center; cursor: pointer; }
+        .icon {
+            width: 60px; height: 60px; border-radius: 14px;
+            display: flex; justify-content: center; align-items: center;
+            font-size: 32px; background-color: #fff; box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            transition: transform 0.1s;
+        }
+        .icon:active { transform: scale(0.85); }
+        .app-icon span { color: white; font-size: 11px; margin-top: 5px; font-weight: 500; text-shadow: 0 1px 3px rgba(0,0,0,0.8); }
+
+        /* iPhone Dock (Bottom Apps) */
+        .dock {
+            background: rgba(255, 255, 255, 0.25); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border-radius: 25px; margin: 0 15px 30px 15px; padding: 15px;
+            display: flex; justify-content: space-around;
+        }
+        .dock .app-icon span { display: none; } /* Hide text in dock */
+        .dock .icon { box-shadow: none; width: 55px; height: 55px; }
+
+        /* Icon Colors */
+        .safari .icon { background: linear-gradient(180deg, #1cb5e0, #000851); color: white; }
+        .settings .icon { background: linear-gradient(180deg, #d3d3d3, #888); }
+        .appstore .icon { background: linear-gradient(180deg, #1d976c, #93f9b9); color: white; }
+        .photos .icon { background: white; font-size: 35px; }
+        .phone .icon { background: #34C759; color: white; font-size: 30px; }
+        .messages .icon { background: #34C759; color: white; font-size: 30px; }
+        .music .icon { background: #ff2d55; color: white; font-size: 30px; }
+
+        /* --- App UI --- */
+        .app-header {
+            padding: 50px 20px 15px; background: rgba(248, 248, 248, 0.9); backdrop-filter: blur(10px);
+            border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center;
+            font-weight: 600; font-size: 18px; position: sticky; top: 0; z-index: 10;
+        }
+        .back-btn { color: #007aff; cursor: pointer; font-size: 16px; font-weight: 400; }
+        .app-content { height: calc(100% - 85px); overflow-y: auto; background: #f2f2f7; touch-action: pan-y; }
+        
+        /* Home Indicator (Swipe bar at bottom) */
+        .home-indicator {
+            position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%);
+            width: 135px; height: 5px; background-color: #000; border-radius: 10px;
+            cursor: pointer; z-index: 1000;
+        }
+        #home-screen .home-indicator { background-color: rgba(255,255,255,0.8); }
+
+        /* --- Settings & Safari --- */
+        .settings-group { background: #fff; margin: 20px; border-radius: 12px; overflow: hidden; }
+        .setting-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #eee; }
+        .setting-item:last-child { border-bottom: none; }
+        
+        .switch { position: relative; display: inline-block; width: 50px; height: 30px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #e5e5ea; transition: .4s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 26px; width: 26px; left: 2px; bottom: 2px; background-color: white; transition: .4s; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+        input:checked + .slider { background-color: #34C759; }
+        input:checked + .slider:before { transform: translateX(20px); }
+
+        .browser-bar { display: flex; gap: 10px; padding: 10px 20px; background: white; border-bottom: 1px solid #ccc; }
+        .browser-bar input { flex: 1; padding: 10px; border-radius: 12px; border: 1px solid #ddd; outline: none; background: #eee; }
+        iframe { width: 100%; height: calc(100% - 60px); border: none; background: #fff; }
+
+        /* --- Control Center Real Look --- */
+        .cc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 10px; }
+        .cc-box { background: rgba(255,255,255,0.15); border-radius: 20px; padding: 15px; display: flex; flex-direction: column; gap: 10px; }
+        .cc-icon { width: 45px; height: 45px; background: rgba(255,255,255,0.2); border-radius: 50%; display: flex; justify-content: center; align-items: center; color: white; font-size: 20px; cursor: pointer; transition: 0.3s; }
+        .cc-icon.active { background: #007aff; }
+        
+        .cc-slider { width: 100%; height: 30px; border-radius: 15px; background: rgba(255,255,255,0.2); outline: none; -webkit-appearance: none; overflow: hidden; margin-top: 5px; }
+        .cc-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 30px; height: 30px; background: white; border-radius: 50%; box-shadow: -100vw 0 0 100vw white; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<div class="iphone-frame">
+    <div class="dynamic-island" id="island"></div>
+    
+    <div class="cc-trigger" onclick="toggleControlCenter()"></div>
+    
+    <div class="screen">
+        <div class="status-bar">
+            <span id="time-display">12:00</span>
+            <div style="display: flex; gap: 5px; align-items: center; pointer-events: none;">
+                <span>5G</span><span>📶</span><span>🔋</span>
+            </div>
+        </div>
+
+        <div id="home-screen">
+            <div class="app-grid">
+                <div class="app-icon settings" onclick="openApp('Settings')">
+                    <div class="icon">⚙️</div><span>Settings</span>
+                </div>
+                <div class="app-icon appstore" onclick="openApp('App Store')">
+                    <div class="icon">🅰️</div><span>App Store</span>
+                </div>
+                <div class="app-icon photos" onclick="openApp('Photos')">
+                    <div class="icon">🌺</div><span>Photos</span>
+                </div>
+                <div class="app-icon" onclick="openApp('Calculator')">
+                    <div class="icon" style="background:#ff9500; color:white;">🧮</div><span>Calculator</span>
+                </div>
+                <div class="app-icon" onclick="openApp('Weather')">
+                    <div class="icon" style="background:#0b84ff; color:white;">☀️</div><span>Weather</span>
+                </div>
+                <div class="app-icon" onclick="openApp('Camera')">
+                    <div class="icon" style="background:#d3d3d3;">📷</div><span>Camera</span>
+                </div>
+            </div>
+
+            <div class="dock">
+                <div class="app-icon phone" onclick="openApp('Phone')">
+                    <div class="icon">📞</div><span>Phone</span>
+                </div>
+                <div class="app-icon messages" onclick="openApp('Messages')">
+                    <div class="icon">💬</div><span>Messages</span>
+                </div>
+                <div class="app-icon safari" onclick="openApp('Safari')">
+                    <div class="icon">🧭</div><span>Safari</span>
+                </div>
+                <div class="app-icon music" onclick="openApp('Music')">
+                    <div class="icon">🎵</div><span>Music</span>
+                </div>
+            </div>
+            
+            <div class="home-indicator" onclick="goHome()"></div>
+        </div>
+
+        <div id="app-screen">
+            <div class="app-header">
+                <div class="back-btn" onclick="goHome()">❮ Home</div>
+                <div id="app-title" style="font-weight: bold;">App</div>
+                <div style="width: 55px;"></div>
+            </div>
+            <div class="app-content" id="app-body"></div>
+            <div class="home-indicator" onclick="goHome()"></div>
+        </div>
+
+        <div id="control-center">
+            <div class="cc-grid">
+                <div class="cc-box" style="flex-direction: row; flex-wrap: wrap;">
+                    <div class="cc-icon active" onclick="this.classList.toggle('active')">✈️</div>
+                    <div class="cc-icon active" onclick="this.classList.toggle('active')">📶</div>
+                    <div class="cc-icon active" onclick="this.classList.toggle('active')">ᛒ</div>
+                    <div class="cc-icon" onclick="this.classList.toggle('active')">📳</div>
+                </div>
+                <div class="cc-box" style="justify-content: center; align-items: center;">
+                    <div class="cc-icon" style="width:60px; height:60px; font-size:25px;" onclick="this.classList.toggle('active')">🎵</div>
+                    <span style="color:white; font-size:12px; margin-top:5px;">Not Playing</span>
+                </div>
+            </div>
+            <div class="cc-grid">
+                <div class="cc-box">
+                    <span style="color:white; font-size:14px; font-weight:bold;">☀️ Brightness</span>
+                    <input type="range" min="1" max="100" value="80" class="cc-slider">
+                </div>
+                <div class="cc-box">
+                    <span style="color:white; font-size:14px; font-weight:bold;">🔊 Volume</span>
+                    <input type="range" min="1" max="100" value="50" class="cc-slider">
+                </div>
+            </div>
+            <div style="text-align:center; color:white; margin-top: 30px; font-size: 14px; cursor:pointer;" onclick="toggleControlCenter()">
+                ▲ Tap here or Home Bar to close
+            </div>
+            <div class="home-indicator" onclick="toggleControlCenter()" style="background-color: white;"></div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    // --- Clock Logic ---
+    function updateClock() {
+        const now = new Date();
+        let hours = now.getHours() % 12 || 12; 
+        let minutes = now.getMinutes() < 10 ? '0' + now.getMinutes() : now.getMinutes();
+        document.getElementById('time-display').innerText = hours + ':' + minutes;
+    }
+    setInterval(updateClock, 1000); updateClock();
+
+    // --- Navigation UI ---
+    const homeScreen = document.getElementById('home-screen');
+    const appScreen = document.getElementById('app-screen');
+    const controlCenter = document.getElementById('control-center');
+
+    function goHome() {
+        appScreen.classList.remove('active');
+        controlCenter.classList.remove('active');
+        homeScreen.classList.remove('scaled-back');
+    }
+
+    // Top Right touch opens Control Center
+    function toggleControlCenter() {
+        if(controlCenter.classList.contains('active')) {
+            controlCenter.classList.remove('active');
+            homeScreen.classList.remove('scaled-back');
+        } else {
+            controlCenter.classList.add('active');
+            homeScreen.classList.add('scaled-back'); // Pushes home screen slightly back for 3D feel
+        }
+    }
+
+    // --- Dynamic Island Animation ---
+    function expandIsland() {
+        const island = document.getElementById('island');
+        island.style.width = '200px'; island.style.height = '40px';
+        setTimeout(() => { island.style.width = '120px'; island.style.height = '35px'; }, 800);
+    }
+
+    // --- App Content Injector ---
+    function openApp(appName) {
+        if (controlCenter.classList.contains('active')) return; // Don't open if CC is down
+        
+        document.getElementById('app-title').innerText = appName;
+        const appBody = document.getElementById('app-body');
+        expandIsland(); // Island pops when app opens
+        
+        if (appName === 'Settings') {
+            appBody.innerHTML = `
+                <div style="padding: 20px 20px 0; font-size: 28px; font-weight:bold;">Settings</div>
+                <div class="settings-group">
+                    <div class="setting-item"><span>✈️ Airplane Mode</span><label class="switch"><input type="checkbox"><span class="slider"></span></label></div>
+                    <div class="setting-item"><span>📶 Wi-Fi</span><span style="color:gray;">Connected ❯</span></div>
+                    <div class="setting-item"><span>ᛒ Bluetooth</span><span style="color:gray;">On ❯</span></div>
+                </div>
+                <div class="settings-group">
+                    <div class="setting-item"><span>⚙️ General</span><span>❯</span></div>
+                    <div class="setting-item"><span>📱 Display & Brightness</span><span>❯</span></div>
+                    <div class="setting-item"><span>🔋 Battery</span><span style="color:gray;">100% ❯</span></div>
+                </div>
+            `;
+        } else if (appName === 'Safari') {
+            appBody.innerHTML = `
+                <div class="browser-bar">
+                    <input type="text" id="url-input" value="https://en.wikipedia.org" placeholder="Search or type URL">
+                    <button onclick="loadUrl()" style="border:none; background:none; color:#007aff; font-size:16px; font-weight:bold; cursor:pointer;">Go</button>
+                </div>
+                <iframe id="browser-frame" src="https://en.wikipedia.org"></iframe>
+            `;
+        } else if (appName === 'Phone') {
+            appBody.innerHTML = `
+                <div style="display:flex; flex-direction:column; height:100%; justify-content:center; align-items:center;">
+                    <div style="font-size:35px; font-weight:bold; margin-bottom:30px; letter-spacing: 2px;">Dialer</div>
+                    <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:20px;">
+                        <div class="icon" style="background:#e5e5ea; border-radius:50%; font-size:24px;">1</div>
+                        <div class="icon" style="background:#e5e5ea; border-radius:50%; font-size:24px;">2</div>
+                        <div class="icon" style="background:#e5e5ea; border-radius:50%; font-size:24px;">3</div>
+                        <div class="icon" style="background:#e5e5ea; border-radius:50%; font-size:24px;">4</div>
+                        <div class="icon" style="background:#e5e5ea; border-radius:50%; font-size:24px;">5</div>
+                        <div class="icon" style="background:#e5e5ea; border-radius:50%; font-size:24px;">6</div>
+                        <div class="icon" style="background:#e5e5ea; border-radius:50%; font-size:24px;">7</div>
+                        <div class="icon" style="background:#e5e5ea; border-radius:50%; font-size:24px;">8</div>
+                        <div class="icon" style="background:#e5e5ea; border-radius:50%; font-size:24px;">9</div>
+                        <div class="icon" style="background:transparent;"></div>
+                        <div class="icon" style="background:#e5e5ea; border-radius:50%; font-size:24px;">0</div>
+                        <div class="icon" style="background:transparent;"></div>
+                    </div>
+                    <div class="icon" style="background:#34C759; color:white; border-radius:50%; font-size:30px; margin-top:30px; width:70px; height:70px;">📞</div>
+                </div>
+            `;
+        } else if (appName === 'Messages') {
+            appBody.innerHTML = `
+                <div style="padding: 20px 20px 0; font-size: 28px; font-weight:bold;">Messages</div>
+                <div style="padding:20px; text-align:center; color:gray; margin-top:50px;">No new messages</div>
+            `;
+        } else {
+            appBody.innerHTML = `<div style="display:flex; justify-content:center; align-items:center; height:100%; font-size:18px; color:gray;">App Interface Empty</div>`;
+        }
+
+        appScreen.classList.add('active');
+    }
+
+    function loadUrl() {
+        let url = document.getElementById('url-input').value;
+        if (!url.startsWith('http')) url = 'https://' + url;
+        document.getElementById('browser-frame').src = url;
+    }
+</script>
+
+</body>
+</html>
