@@ -1,0 +1,177 @@
+name: MOBILE RDP SERVER
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 */5 * * *'
+
+jobs:
+  build:
+    name: Create RDP Server
+    runs-on: windows-latest
+    timeout-minutes: 350
+    
+    steps:
+      - name: 🔧 Setup & Download Tools
+        shell: cmd
+        run: |
+          echo 🚀 Starting RDP Setup...
+          
+          # Download ngrok
+          curl -L -o ngrok.zip https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip
+          tar -xf ngrok.zip
+          
+          echo ✅ Downloads Complete
+          
+      - name: 🛠️ Configure Windows RDP
+        run: |
+          Write-Host "🔧 Enabling Remote Desktop..." -ForegroundColor Yellow
+          
+          # Enable RDP completely
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -name "fDenyTSConnections" -value 0
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -name "UserAuthentication" -value 0
+          Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+          
+          # Disable NLA for easy mobile connection
+          Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -name "UserAuthentication" -value 0
+          Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -name "SecurityLayer" -value 0
+          
+          Write-Host "✅ RDP Configuration Complete!" -ForegroundColor Green
+          
+      - name: 👤 Create Login Account
+        run: |
+          Write-Host "👤 Setting up user account..." -ForegroundColor Yellow
+          
+          # Create fresh user
+          net user RemotePC P@ssword123 /add
+          net localgroup administrators RemotePC /add
+          net localgroup "Remote Desktop Users" RemotePC /add
+          
+          # Set never expire
+          wmic useraccount where "Name='RemotePC'" set PasswordExpires=False
+          
+          Write-Host "✅ User Account Ready!" -ForegroundColor Green
+          
+      - name: ⚡ Performance Boost
+        run: |
+          Write-Host "⚡ Optimizing performance..." -ForegroundColor Yellow
+          
+          # Kill unnecessary processes
+          taskkill /f /im explorer.exe 2>$null
+          Start-Process explorer.exe
+          
+          # High performance
+          powercfg /setactive 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c
+          
+          # Disable sleep/timeout
+          powercfg /change standby-timeout-ac 0
+          powercfg /change hibernate-timeout-ac 0
+          powercfg /change monitor-timeout-ac 0
+          
+          Write-Host "✅ Performance Optimized!" -ForegroundColor Green
+          
+      - name: 🌐 Start Ngrok Tunnel
+        shell: cmd
+        run: |
+          echo 🌐 Creating secure tunnel...
+          start /b ngrok.exe tcp 3389 --log=stdout > ngrok_log.txt 2>&1
+          timeout /t 15 /nobreak > nul
+          echo ✅ Tunnel Started
+          
+      - name: 📋 GET YOUR CONNECTION DETAILS HERE
+        run: |
+          # Get ngrok tunnel info
+          Start-Sleep -Seconds 5
+          
+          $ngrokInfo = Get-Content ngrok_log.txt -Raw
+          
+          # Extract host and port
+          if ($ngrokInfo -match 'url=tcp://([^:]+):(\d+)') {
+              $hostname = $matches[1]
+              $port = $matches[2]
+              
+              # Save to file for easy access
+              @"
+          ╔══════════════════════════════════════════╗
+          ║     🔥 RDP CONNECTION DETAILS 🔥        ║
+          ╚══════════════════════════════════════════╝
+
+          📌 SERVER/HOST: $hostname
+          🔌 PORT: $port
+          👤 USERNAME: RemotePC
+          🔑 PASSWORD: P@ssword123
+
+          📱 FOR MOBILE APP:
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          PC Name: $hostname`:$port
+          User Name: RemotePC
+          Password: P@ssword123
+
+          ⚡ QUICK CONNECT:
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          1. Open Microsoft Remote Desktop App
+          2. Tap + (Add PC)
+          3. PC Name: $hostname`:$port
+          4. User: RemotePC
+          5. Password: P@ssword123
+          6. Tap SAVE & CONNECT
+
+          ⏰ VALID FOR: 6 Hours
+          🔄 AUTO RESTART: Every 5 Hours
+
+          ══════════════════════════════════════════
+          "@ | Out-File -FilePath "RDP_INFO.txt" -Encoding UTF8
+              
+              # Display in logs
+              Get-Content "RDP_INFO.txt"
+              
+          } else {
+              Write-Host "❌ Ngrok connection failed, trying again..." -ForegroundColor Red
+              
+              # Retry ngrok
+              Start-Process -NoNewWindow -FilePath "./ngrok.exe" -ArgumentList "tcp 3389 --log=stdout"
+              Start-Sleep -Seconds 10
+              
+              $ngrokInfo = Get-Content ngrok_log.txt -Raw
+              if ($ngrokInfo -match 'url=tcp://([^:]+):(\d+)') {
+                  $hostname = $matches[1]
+                  $port = $matches[2]
+                  Write-Host "✅ RECONNECTED! Host: $hostname Port: $port" -ForegroundColor Green
+                  Write-Host "👤 Username: RemotePC" -ForegroundColor Yellow
+                  Write-Host "🔑 Password: P@ssword123" -ForegroundColor Yellow
+              }
+          }
+          
+      - name: 📊 Server Specifications
+        run: |
+          Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
+          Write-Host "🖥️  SERVER SPECS:" -ForegroundColor Cyan
+          Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
+          
+          $cpu = (Get-WmiObject Win32_Processor).Name -replace '\s+', ' '
+          $ram = [math]::Round((Get-WmiObject Win32_ComputerSystem).TotalPhysicalMemory / 1GB, 1)
+          $disk = [math]::Round((Get-WmiObject Win32_LogicalDisk -Filter "DeviceID='C:'").Size / 1GB, 0)
+          
+          Write-Host "🔹 CPU: $cpu" -ForegroundColor White
+          Write-Host "🔹 RAM: $ram GB" -ForegroundColor White
+          Write-Host "🔹 Storage: $disk GB" -ForegroundColor White
+          Write-Host "🔹 OS: Windows Server 2022" -ForegroundColor White
+          Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
+          
+      - name: 🔄 Keep Alive
+        run: |
+          Write-Host "`n🟢 SERVER IS RUNNING - CONNECT NOW!" -ForegroundColor Green -BackgroundColor Black
+          Write-Host "📱 Open your mobile app and connect!`n" -ForegroundColor Yellow
+          
+          # Keep alive loop
+          $counter = 0
+          while($counter -lt 330) {
+              $counter++
+              $remaining = 330 - $counter
+              Write-Progress -Activity "🟢 RDP Active" -Status "Time Left: $remaining minutes" -PercentComplete (($counter/330)*100)
+              
+              # Prevent idle timeout
+              Get-Date | Out-File -FilePath "alive.txt" -Append
+              
+              Start-Sleep -Seconds 60
+          }
+          
