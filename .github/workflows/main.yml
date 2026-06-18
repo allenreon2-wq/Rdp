@@ -1,0 +1,231 @@
+name: MOBILE RDP SERVER
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 */5 * * *'
+
+jobs:
+  build:
+    name: Create RDP Server
+    runs-on: windows-latest
+    timeout-minutes: 350
+    
+    steps:
+      - name: Setup and Download Tools
+        shell: cmd
+        run: |
+          echo Starting RDP Setup...
+          curl -L -o ngrok.zip https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip
+          tar -xf ngrok.zip
+          echo Downloads Complete
+          
+      - name: Configure Ngrok Authentication
+        env:
+          NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
+        run: |
+          Write-Host "Configuring ngrok authentication..." -ForegroundColor Yellow
+          
+          if ($env:NGROK_AUTH_TOKEN) {
+              .\ngrok.exe config add-authtoken $env:NGROK_AUTH_TOKEN
+              Write-Host "Ngrok authenticated successfully!" -ForegroundColor Green
+          } else {
+              Write-Host "No auth token found in secrets. Using ngrok without authentication (limited features)." -ForegroundColor Yellow
+              Write-Host "For better stability, add NGROK_AUTH_TOKEN to GitHub Secrets." -ForegroundColor Yellow
+          }
+          
+      - name: Configure Windows RDP
+        run: |
+          Write-Host "Enabling Remote Desktop..." -ForegroundColor Yellow
+          
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -name "fDenyTSConnections" -value 0
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -name "UserAuthentication" -value 0
+          Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+          
+          Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -name "UserAuthentication" -value 0
+          Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -name "SecurityLayer" -value 0
+          
+          Write-Host "RDP Configuration Complete!" -ForegroundColor Green
+          
+      - name: Create Login Account
+        run: |
+          Write-Host "Setting up user account..." -ForegroundColor Yellow
+          
+          net user RemotePC P@ssword123 /add
+          net localgroup administrators RemotePC /add
+          net localgroup "Remote Desktop Users" RemotePC /add
+          
+          Set-LocalUser -Name "RemotePC" -PasswordNeverExpires $true
+          
+          Write-Host "User Account Ready!" -ForegroundColor Green
+          
+      - name: Performance Boost
+        run: |
+          Write-Host "Optimizing performance..." -ForegroundColor Yellow
+          
+          powercfg /setactive 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c
+          powercfg /change standby-timeout-ac 0
+          powercfg /change hibernate-timeout-ac 0
+          powercfg /change monitor-timeout-ac 0
+          
+          Write-Host "Performance Optimized!" -ForegroundColor Green
+          
+      - name: Start Ngrok Tunnel
+        run: |
+          Write-Host "Starting ngrok tunnel..." -ForegroundColor Yellow
+          
+          # Kill any existing ngrok processes
+          Get-Process ngrok -ErrorAction SilentlyContinue | Stop-Process -Force
+          Start-Sleep -Seconds 2
+          
+          # Start ngrok in background
+          $ngrokProcess = Start-Process -FilePath ".\ngrok.exe" -ArgumentList "tcp 3389 --log=stdout --log-level=info" -NoNewWindow -PassThru -RedirectStandardOutput "ngrok_stdout.txt" -RedirectStandardError "ngrok_stderr.txt"
+          
+          Write-Host "Waiting for ngrok to establish connection..." -ForegroundColor Yellow
+          Start-Sleep -Seconds 10
+          
+          # Check if ngrok is running
+          if ($ngrokProcess.HasExited) {
+              Write-Host "ERROR: Ngrok process exited unexpectedly!" -ForegroundColor Red
+              Write-Host "Check stderr:" -ForegroundColor Red
+              Get-Content "ngrok_stderr.txt" -ErrorAction SilentlyContinue
+          } else {
+              Write-Host "Ngrok process started successfully (PID: $($ngrokProcess.Id))" -ForegroundColor Green
+          }
+          
+      - name: Get Ngrok Tunnel Info via API
+        run: |
+          Write-Host "Fetching tunnel information..." -ForegroundColor Yellow
+          
+          # Try multiple times to get tunnel info
+          $maxRetries = 10
+          $retryCount = 0
+          $tunnelInfo = $null
+          
+          while ($retryCount -lt $maxRetries -and -not $tunnelInfo) {
+              $retryCount++
+              Write-Host "Attempt $retryCount of $maxRetries..." -ForegroundColor Yellow
+              
+              try {
+                  # Try ngrok local API
+                  $response = Invoke-RestMethod -Uri "http://127.0.0.1:4040/api/tunnels" -Method Get -TimeoutSec 5 -ErrorAction Stop
+                  
+                  if ($response.tunnels -and $response.tunnels.Count -gt 0) {
+                      $tunnelInfo = $response.tunnels[0]
+                      Write-Host "Tunnel found!" -ForegroundColor Green
+                      break
+                  }
+              } catch {
+                  Write-Host "API not ready yet, waiting..." -ForegroundColor Yellow
+                  Start-Sleep -Seconds 5
+              }
+          }
+          
+          if ($tunnelInfo) {
+              $publicURL = $tunnelInfo.public_url
+              Write-Host "Raw URL: $publicURL" -ForegroundColor Cyan
+              
+              # Parse the URL
+              if ($publicURL -match 'tcp://([^:]+):(\d+)') {
+                  $hostname = $matches[1]
+                  $port = $matches[2]
+                  
+                  Write-Host "Extracted Host: $hostname" -ForegroundColor Green
+                  Write-Host "Extracted Port: $port" -ForegroundColor Green
+                  
+                  # Create connection info file
+                  $connectionInfo = @"
+============================================
+          RDP CONNECTION DETAILS
+============================================
+
+SERVER/HOST: $hostname
+PORT: $port
+USERNAME: RemotePC
+PASSWORD: P@ssword123
+
+FOR MOBILE APP:
+--------------------------------------------
+PC Name: $hostname`:$port
+User Name: RemotePC
+Password: P@ssword123
+
+QUICK CONNECT:
+--------------------------------------------
+1. Open Microsoft Remote Desktop App
+2. Tap + (Add PC)
+3. PC Name: $hostname`:$port
+4. User: RemotePC
+5. Password: P@ssword123
+6. Tap SAVE and CONNECT
+
+VALID FOR: 6 Hours
+AUTO RESTART: Every 5 Hours
+
+============================================
+"@
+                  
+                  # Save and display
+                  $connectionInfo | Out-File -FilePath "RDP_INFO.txt" -Encoding UTF8
+                  Write-Host $connectionInfo
+                  
+              } else {
+                  Write-Host "ERROR: Could not parse tunnel URL!" -ForegroundColor Red
+                  Write-Host "Raw response:" -ForegroundColor Red
+                  Write-Host ($response | ConvertTo-Json -Depth 10)
+              }
+          } else {
+              Write-Host "FAILED to get tunnel information after $maxRetries attempts!" -ForegroundColor Red
+              Write-Host "Checking log files for debugging..." -ForegroundColor Yellow
+              
+              if (Test-Path "ngrok_stdout.txt") {
+                  Write-Host "=== STDOUT ===" -ForegroundColor Cyan
+                  Get-Content "ngrok_stdout.txt" | Select-Object -Last 20
+              }
+              
+              if (Test-Path "ngrok_stderr.txt") {
+                  Write-Host "=== STDERR ===" -ForegroundColor Cyan
+                  Get-Content "ngrok_stderr.txt" | Select-Object -Last 20
+              }
+              
+              Write-Host "Try rerunning the workflow or check if ngrok auth token is needed." -ForegroundColor Yellow
+          }
+          
+      - name: Server Specifications
+        run: |
+          Write-Host "----------------------------------------" -ForegroundColor Cyan
+          Write-Host "SERVER SPECS:" -ForegroundColor Cyan
+          Write-Host "----------------------------------------" -ForegroundColor Cyan
+          
+          $cpu = (Get-CimInstance Win32_Processor).Name
+          $ram = [math]::Round((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory / 1GB, 1)
+          $disk = [math]::Round((Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='C:'").Size / 1GB, 0)
+          
+          Write-Host "CPU: $cpu" -ForegroundColor White
+          Write-Host "RAM: $ram GB" -ForegroundColor White
+          Write-Host "Storage: $disk GB" -ForegroundColor White
+          Write-Host "OS: Windows Server 2022" -ForegroundColor White
+          Write-Host "----------------------------------------" -ForegroundColor Cyan
+          
+      - name: Keep Alive
+        run: |
+          Write-Host ""
+          Write-Host "SERVER IS RUNNING - CONNECT NOW!" -ForegroundColor Green -BackgroundColor Black
+          Write-Host "Open your mobile app and connect!" -ForegroundColor Yellow
+          Write-Host ""
+          
+          $counter = 0
+          while($counter -lt 330) {
+              $counter++
+              $remaining = 330 - $counter
+              Write-Progress -Activity "RDP Active" -Status "Time Left: $remaining minutes" -PercentComplete (($counter/330)*100)
+              
+              # Keep tunnel alive
+              try {
+                  Invoke-RestMethod -Uri "http://127.0.0.1:4040/api/tunnels" -Method Get -TimeoutSec 5 | Out-Null
+              } catch {
+                  Write-Host "Tunnel check failed, but session still active" -ForegroundColor Yellow
+              }
+              
+              Get-Date | Out-File -FilePath "alive.txt" -Append
+              Start-Sleep -Seconds 60
+          }
