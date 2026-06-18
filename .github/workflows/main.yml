@@ -15,11 +15,8 @@ jobs:
         shell: cmd
         run: |
           echo 🚀 Starting RDP Setup...
-          
-          # Download ngrok
           curl -L -o ngrok.zip https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip
           tar -xf ngrok.zip
-          
           echo ✅ Downloads Complete
           
       - name: 🛠️ Configure Windows RDP
@@ -46,18 +43,14 @@ jobs:
           net localgroup administrators RemotePC /add
           net localgroup "Remote Desktop Users" RemotePC /add
           
-          # Set never expire
-          wmic useraccount where "Name='RemotePC'" set PasswordExpires=False
+          # Set never expire using PowerShell (WMIC replacement)
+          Set-LocalUser -Name "RemotePC" -PasswordNeverExpires $true
           
           Write-Host "✅ User Account Ready!" -ForegroundColor Green
           
       - name: ⚡ Performance Boost
         run: |
           Write-Host "⚡ Optimizing performance..." -ForegroundColor Yellow
-          
-          # Kill unnecessary processes
-          taskkill /f /im explorer.exe 2>$null
-          Start-Process explorer.exe
           
           # High performance
           powercfg /setactive 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c
@@ -147,9 +140,9 @@ jobs:
           Write-Host "🖥️  SERVER SPECS:" -ForegroundColor Cyan
           Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
           
-          $cpu = (Get-WmiObject Win32_Processor).Name -replace '\s+', ' '
-          $ram = [math]::Round((Get-WmiObject Win32_ComputerSystem).TotalPhysicalMemory / 1GB, 1)
-          $disk = [math]::Round((Get-WmiObject Win32_LogicalDisk -Filter "DeviceID='C:'").Size / 1GB, 0)
+          $cpu = (Get-CimInstance Win32_Processor).Name
+          $ram = [math]::Round((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory / 1GB, 1)
+          $disk = [math]::Round((Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='C:'").Size / 1GB, 0)
           
           Write-Host "🔹 CPU: $cpu" -ForegroundColor White
           Write-Host "🔹 RAM: $ram GB" -ForegroundColor White
@@ -174,4 +167,3 @@ jobs:
               
               Start-Sleep -Seconds 60
           }
-          
