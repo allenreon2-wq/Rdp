@@ -1,0 +1,423 @@
+name: MOBILE RDP SERVER
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 */5 * * *'
+
+jobs:
+  build:
+    name: Create RDP Server
+    runs-on: windows-latest
+    timeout-minutes: 350
+
+    steps:  
+      - name: Setup and Download Tools
+        shell: pwsh
+        run: |
+          Write-Host "Starting RDP Setup..." -ForegroundColor Green
+          
+          # Create working directory
+          $workDir = "$env:RUNNER_TEMP\rdp-setup"
+          New-Item -ItemType Directory -Force -Path $workDir | Out-Null
+          Set-Location $workDir
+          
+          # Download ngrok
+          Write-Host "Downloading ngrok..." -ForegroundColor Yellow
+          Invoke-WebRequest -Uri "https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip" -OutFile "ngrok.zip"
+          
+          # Extract ngrok
+          Write-Host "Extracting ngrok..." -ForegroundColor Yellow
+          Expand-Archive -Path "ngrok.zip" -DestinationPath $workDir -Force
+          
+          # Verify ngrok exists
+          if (Test-Path "$workDir\ngrok.exe") {
+            Write-Host "ngrok downloaded successfully!" -ForegroundColor Green
+          } else {
+            Write-Host "ERROR: ngrok.exe not found!" -ForegroundColor Red
+            exit 1
+          }
+          
+          # Set working directory as environment variable for later steps
+          echo "WORK_DIR=$workDir" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          
+          Write-Host "Downloads Complete" -ForegroundColor Green
+      
+      - name: Configure Ngrok Authentication
+        shell: pwsh
+        run: |
+          Write-Host "Configuring Ngrok Authentication..." -ForegroundColor Yellow
+          
+          $workDir = $env:WORK_DIR
+          Set-Location $workDir
+          
+          # Check for auth token
+          if ([string]::IsNullOrEmpty($env:NGROK_AUTH_TOKEN)) {
+            Write-Host "ERROR: NGROK_AUTH_TOKEN secret is not set!" -ForegroundColor Red
+            Write-Host "Please add NGROK_AUTH_TOKEN in GitHub Secrets" -ForegroundColor Red
+            Write-Host "Get your token from: https://dashboard.ngrok.com/get-started/your-authtoken" -ForegroundColor Yellow
+            exit 1
+          }
+          
+          # Configure ngrok with authtoken
+          $configPath = "$env:APPDATA\ngrok\ngrok.yml"
+          $configDir = Split-Path $configPath -Parent
+          
+          if (-not (Test-Path $configDir)) {
+            New-Item -ItemType Directory -Force -Path $configDir | Out-Null
+          }
+          
+          # Create ngrok config file
+          @"
+version: "2"
+authtoken: $env:NGROK_AUTH_TOKEN
+tunnels:
+  rdp:
+    proto: tcp
+    addr: 3389
+"@ | Out-File -FilePath $configPath -Encoding utf8
+          
+          # Verify configuration
+          Write-Host "Testing ngrok configuration..." -ForegroundColor Yellow
+          $result = & "$workDir\ngrok.exe" config check 2>&1
+          Write-Host $result
+          
+          Write-Host "Ngrok Authentication Configured!" -ForegroundColor Green
+      
+      - name: Configure Windows RDP
+        shell: pwsh
+        run: |
+          Write-Host "Enabling Remote Desktop..." -ForegroundColor Yellow
+          
+          # Enable RDP
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0 -Force
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 0 -Force
+          
+          # Configure firewall
+          Enable-NetFirewallRule -DisplayGroup "Remote Desktop" -ErrorAction SilentlyContinue
+          New-NetFirewallRule -DisplayName "RDP Port 3389" -Direction Inbound -Protocol TCP -LocalPort 3389 -Action Allow -ErrorAction SilentlyContinue
+          
+          # Additional RDP settings for better compatibility
+          Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "SecurityLayer" -Value 0 -Force
+          Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\Terminal Server' -Name "fSingleSessionPerUser" -Value 0 -Force
+          
+          # Restart TermService to apply changes
+          Restart-Service TermService -Force -ErrorAction SilentlyContinue
+          Start-Sleep -Seconds 5
+          
+          # Verify RDP is enabled
+          $rdpStatus = Get-Service TermService | Select-Object Status
+          Write-Host "RDP Service Status: $($rdpStatus.Status)" -ForegroundColor Cyan
+          
+          Write-Host "RDP Configuration Complete!" -ForegroundColor Green
+      
+      - name: Create Login Account
+        shell: pwsh
+        run: |
+          Write-Host "Setting up user account..." -ForegroundColor Yellow
+          
+          $username = "RemotePC"
+          $password = "P@ssword123"
+          $securePassword = ConvertTo-SecureString $password -AsPlainText -Force
+          
+          # Remove existing user if present
+          try {
+            $existingUser = Get-LocalUser -Name $username -ErrorAction Stop
+            Remove-LocalUser -Name $username -ErrorAction Stop
+            Write-Host "Removed existing user account" -ForegroundColor Yellow
+          } catch {
+            Write-Host "No existing user to remove" -ForegroundColor Gray
+          }
+          
+          # Create new user
+          New-LocalUser -Name $username -Password $securePassword -FullName "Remote PC User" -Description "RDP Access Account" -ErrorAction Stop
+          
+          # Add to required groups
+          Add-LocalGroupMember -Group "Administrators" -Member $username -ErrorAction Stop
+          Add-LocalGroupMember -Group "Remote Desktop Users" -Member $username -ErrorAction SilentlyContinue
+          
+          # Set password to never expire
+          Set-LocalUser -Name $username -PasswordNeverExpires $true -ErrorAction SilentlyContinue
+          
+          # Verify user creation
+          $userCheck = Get-LocalUser -Name $username
+          Write-Host "User Created: $($userCheck.Name)" -ForegroundColor Green
+          Write-Host "User Account Ready!" -ForegroundColor Green
+      
+      - name: Performance Boost
+        shell: pwsh
+        run: |
+          Write-Host "Optimizing performance..." -ForegroundColor Yellow
+          
+          # High Performance power plan
+          try {
+            powercfg /setactive 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c
+          } catch {
+            Write-Host "Power plan optimization skipped" -ForegroundColor Yellow
+          }
+          
+          # Prevent sleep/hibernate
+          powercfg /change standby-timeout-ac 0
+          powercfg /change hibernate-timeout-ac 0
+          powercfg /change monitor-timeout-ac 0
+          powercfg /change disk-timeout-ac 0
+          
+          # Disable Windows Update temporarily
+          Stop-Service wuauserv -Force -ErrorAction SilentlyContinue
+          Set-Service wuauserv -StartupType Disabled -ErrorAction SilentlyContinue
+          
+          # Disable Windows Defender real-time monitoring for performance
+          Set-MpPreference -DisableRealtimeMonitoring $true -ErrorAction SilentlyContinue
+          
+          Write-Host "Performance Optimized!" -ForegroundColor Green
+      
+      - name: Start Ngrok Tunnel
+        shell: pwsh
+        run: |
+          Write-Host "Starting Ngrok Tunnel..." -ForegroundColor Yellow
+          
+          $workDir = $env:WORK_DIR
+          Set-Location $workDir
+          
+          # Kill any existing ngrok processes
+          Get-Process -Name "ngrok" -ErrorAction SilentlyContinue | Stop-Process -Force
+          Start-Sleep -Seconds 2
+          
+          # Start ngrok with named tunnel
+          Write-Host "Creating TCP tunnel for port 3389..." -ForegroundColor Cyan
+          
+          # Create a job to run ngrok in background
+          $ngrokJob = Start-Job -ScriptBlock {
+            param($workDir)
+            Set-Location $workDir
+            & "$workDir\ngrok.exe" tcp 3389 --log=stdout --log-level=info 2>&1 | Out-File "$workDir\ngrok_output.log"
+          } -ArgumentList $workDir
+          
+          # Wait for ngrok to establish connection
+          Write-Host "Waiting for tunnel to establish..." -ForegroundColor Yellow
+          Start-Sleep -Seconds 10
+          
+          # Check if ngrok is running
+          $ngrokProcess = Get-Process -Name "ngrok" -ErrorAction SilentlyContinue
+          if ($ngrokProcess) {
+            Write-Host "Ngrok process started (PID: $($ngrokProcess.Id))" -ForegroundColor Green
+          } else {
+            Write-Host "ERROR: Ngrok failed to start!" -ForegroundColor Red
+            if (Test-Path "$workDir\ngrok_output.log") {
+              Write-Host "Ngrok output:" -ForegroundColor Red
+              Get-Content "$workDir\ngrok_output.log" -Tail 20
+            }
+            exit 1
+          }
+          
+          Write-Host "Tunnel Started Successfully!" -ForegroundColor Green
+      
+      - name: Get Connection Details via API
+        shell: pwsh
+        run: |
+          Write-Host "Fetching connection details..." -ForegroundColor Yellow
+          
+          $workDir = $env:WORK_DIR
+          
+          # Wait for ngrok to fully initialize
+          Start-Sleep -Seconds 10
+          
+          # Try multiple methods to get tunnel info
+          $tunnelInfo = $null
+          $maxRetries = 10
+          $retryCount = 0
+          
+          while ($retryCount -lt $maxRetries -and -not $tunnelInfo) {
+            $retryCount++
+            Write-Host "Attempt $retryCount of $maxRetries..." -ForegroundColor Yellow
+            
+            try {
+              # Method 1: Use ngrok local API (most reliable)
+              $response = Invoke-RestMethod -Uri "http://127.0.0.1:4040/api/tunnels" -Method Get -TimeoutSec 5 -ErrorAction Stop
+              
+              if ($response.tunnels -and $response.tunnels.Count -gt 0) {
+                $tunnel = $response.tunnels | Where-Object { $_.proto -eq "tcp" } | Select-Object -First 1
+                if ($tunnel) {
+                  $publicURL = $tunnel.public_url -replace "tcp://", ""
+                  $parts = $publicURL -split ":"
+                  $tunnelInfo = @{
+                    Host = $parts[0]
+                    Port = $parts[1]
+                  }
+                  Write-Host "Tunnel info retrieved via API!" -ForegroundColor Green
+                  break
+                }
+              }
+            } catch {
+              Write-Host "API attempt failed: $_" -ForegroundColor Gray
+            }
+            
+            # Method 2: Parse log file if API fails
+            if (-not $tunnelInfo -and (Test-Path "$workDir\ngrok_output.log")) {
+              $logContent = Get-Content "$workDir\ngrok_output.log" -Raw -ErrorAction SilentlyContinue
+              if ($logContent -match 'url=tcp://([^:]+):(\d+)') {
+                $tunnelInfo = @{
+                  Host = $matches[1]
+                  Port = $matches[2]
+                }
+                Write-Host "Tunnel info retrieved from logs!" -ForegroundColor Green
+                break
+              }
+            }
+            
+            Start-Sleep -Seconds 5
+          }
+          
+          if ($tunnelInfo) {
+            $hostname = $tunnelInfo.Host
+            $port = $tunnelInfo.Port
+            
+            # Create connection info file
+            $connectionInfo = @"
+      ╔════════════════════════════════════════════╗
+      ║        RDP CONNECTION DETAILS              ║
+      ╚════════════════════════════════════════════╝
+
+      📌 SERVER: $hostname
+      🔌 PORT: $port
+      👤 USERNAME: RemotePC
+      🔑 PASSWORD: P@ssword123
+
+      ═══════════════════════════════════════════
+      📱 FOR MOBILE APP (Microsoft RD Client):
+      ═══════════════════════════════════════════
+      PC Name: $hostname`:$port
+      User Name: RemotePC
+      Password: P@ssword123
+
+      ═══════════════════════════════════════════
+      🖥️  QUICK CONNECT STEPS:
+      ═══════════════════════════════════════════
+      1. Open Microsoft Remote Desktop App
+      2. Tap + (Add PC)
+      3. Enter PC Name: $hostname`:$port
+      4. Add User Account:
+         - Username: RemotePC
+         - Password: P@ssword123
+      5. Tap SAVE and CONNECT
+
+      ⏱️  VALID FOR: 6 Hours
+      🔄 AUTO RESTART: Every 5 Hours
+
+      ╔════════════════════════════════════════════╗
+"@
+            
+            # Save to file
+            $connectionInfo | Out-File -FilePath "$workDir\RDP_INFO.txt" -Encoding UTF8
+            
+            # Display prominently
+            Write-Host "`n" -NoNewline
+            Write-Host "═══════════════════════════════════════" -ForegroundColor Cyan
+            Write-Host "     RDP CONNECTION DETAILS" -ForegroundColor Green
+            Write-Host "═══════════════════════════════════════" -ForegroundColor Cyan
+            Write-Host ""
+            Write-Host "Host: " -NoNewline -ForegroundColor White
+            Write-Host $hostname -ForegroundColor Yellow
+            Write-Host "Port: " -NoNewline -ForegroundColor White
+            Write-Host $port -ForegroundColor Yellow
+            Write-Host "Username: " -NoNewline -ForegroundColor White
+            Write-Host "RemotePC" -ForegroundColor Yellow
+            Write-Host "Password: " -NoNewline -ForegroundColor White
+            Write-Host "P@ssword123" -ForegroundColor Yellow
+            Write-Host ""
+            Write-Host "Connection String: " -NoNewline -ForegroundColor White
+            Write-Host "$hostname`:$port" -ForegroundColor Green
+            Write-Host "═══════════════════════════════════════" -ForegroundColor Cyan
+            
+            # Save connection details as GitHub step output for easy access
+            echo "RDP_HOST=$hostname" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+            echo "RDP_PORT=$port" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+            
+            # Upload RDP_INFO.txt as artifact
+            $connectionInfo | Out-File -FilePath "RDP_INFO.txt" -Encoding UTF8
+            
+          } else {
+            Write-Host "`n" -NoNewline
+            Write-Host "❌ FAILED TO CREATE TUNNEL!" -ForegroundColor Red -BackgroundColor Black
+            Write-Host ""
+            
+            # Debug information
+            Write-Host "Debug Information:" -ForegroundColor Yellow
+            Write-Host "Ngrok Process: " -NoNewline
+            $proc = Get-Process -Name "ngrok" -ErrorAction SilentlyContinue
+            if ($proc) {
+              Write-Host "Running (PID: $($proc.Id))" -ForegroundColor Green
+            } else {
+              Write-Host "NOT RUNNING" -ForegroundColor Red
+            }
+            
+            if (Test-Path "$workDir\ngrok_output.log") {
+              Write-Host "`nNgrok Log (last 20 lines):" -ForegroundColor Yellow
+              Get-Content "$workDir\ngrok_output.log" -Tail 20 | ForEach-Object { Write-Host $_ -ForegroundColor Gray }
+            }
+            
+            Write-Host "`nPlease check your NGROK_AUTH_TOKEN and try again." -ForegroundColor Yellow
+            exit 1
+          }
+      
+      - name: Server Specifications
+        shell: pwsh
+        run: |
+          Write-Host "`n"
+          Write-Host "═══════════════════════════════════════" -ForegroundColor Cyan
+          Write-Host "         SERVER SPECIFICATIONS" -ForegroundColor Green
+          Write-Host "═══════════════════════════════════════" -ForegroundColor Cyan
+          
+          # Get system info
+          $cpu = (Get-CimInstance Win32_Processor).Name -replace '\s+', ' '
+          $cores = (Get-CimInstance Win32_Processor).NumberOfCores
+          $threads = (Get-CimInstance Win32_Processor).NumberOfLogicalProcessors
+          $ram = [math]::Round((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory / 1GB, 1)
+          $disk = Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='C:'"
+          $diskSize = [math]::Round($disk.Size / 1GB, 0)
+          $diskFree = [math]::Round($disk.FreeSpace / 1GB, 0)
+          $os = (Get-CimInstance Win32_OperatingSystem).Caption
+          
+          Write-Host "🖥️  OS: " -NoNewline; Write-Host $os -ForegroundColor White
+          Write-Host "💻 CPU: " -NoNewline; Write-Host $cpu -ForegroundColor White
+          Write-Host "⚡ Cores: " -NoNewline; Write-Host "$cores Physical / $threads Logical" -ForegroundColor White
+          Write-Host "🧠 RAM: " -NoNewline; Write-Host "$ram GB" -ForegroundColor White
+          Write-Host "💾 Storage: " -NoNewline; Write-Host "$diskSize GB Total / $diskFree GB Free" -ForegroundColor White
+          Write-Host "═══════════════════════════════════════" -ForegroundColor Cyan
+      
+      - name: Upload Connection Info
+        uses: actions/upload-artifact@v3
+        with:
+          name: RDP-Connection-Details
+          path: RDP_INFO.txt
+      
+      - name: Keep Alive
+        shell: pwsh
+        run: |
+          Write-Host ""
+          Write-Host "╔════════════════════════════════════════════╗" -ForegroundColor Green
+          Write-Host "║     🟢 SERVER IS RUNNING - CONNECT NOW!    ║" -ForegroundColor Green
+          Write-Host "╚════════════════════════════════════════════╝" -ForegroundColor Green
+          Write-Host ""
+          Write-Host "📱 Open Microsoft Remote Desktop on your mobile" -ForegroundColor Yellow
+          Write-Host "🔗 Use the connection details above" -ForegroundColor Yellow
+          Write-Host "⏱️  Server will stay active for next 5.5 hours" -ForegroundColor Yellow
+          Write-Host ""
+          
+          $counter = 0
+          while($counter -lt 330) {
+            $counter++
+            $remaining = 330 - $counter
+            $hours = [math]::Floor($remaining / 60)
+            $minutes = $remaining % 60
+            
+            Write-Progress -Activity "RDP Server Active" -Status "Time Remaining: $hours hours $minutes minutes" -PercentComplete (($counter/330)*100)
+            
+            # Keep alive actions
+            $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+            Add-Content -Path "alive.txt" -Value "Server alive at: $timestamp"
+            
+            # Prevent screen lock
+            $null = (New-Object -ComObject WScript.Shell).SendKeys('+{F15}')
+            
+            Start-Sleep -Seconds 60
+          }
